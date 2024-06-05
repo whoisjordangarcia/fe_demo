@@ -12,8 +12,9 @@ It utilizes [Next.js](https://nextjs.org), [Prisma](https://prisma.io), [Drizzle
 
 1. Install bun `curl -fsSL https://bun.sh/install | bash` as the main javascript runtime
 2. During initial setup, you will need to seed the database: `bun run db:generate`
-3. Start the development server: `bun run dev`
-4. Navigate to `http://localhost:3000`
+3. Install the packages: `bun install`
+4. Start the development server: `bun run dev`
+5. Navigate to `http://localhost:3000`
 
 ## Running E2E Tests
 

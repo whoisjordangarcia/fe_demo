@@ -1,65 +1,109 @@
-import Link from "next/link";
+"use client";
 
-import { CreatePost } from "~/app/_components/create-post";
-import { api } from "~/trpc/server";
+import { useState, useEffect } from "react";
+import { Product } from "./_components/product";
+import {
+  ProductsResponse,
+  fetchProducts,
+  searchProducts,
+} from "./api/productsApi";
+import { Search } from "./_components/search";
+import { Sort } from "./_components/sort";
+import Footer from "./_components/footer";
+import { calculateProductPriceAverage } from "./utils/pricing";
+import { sortProductsByPrice } from "./utils/sort";
 
-export default async function Home() {
-  const hello = await api.post.hello({ text: "from tRPC" });
+const DEFAULT_SORT_DIRECTION = "asc";
+
+export default function ProductsPage() {
+  const [productResponse, setProductResponse] = useState<ProductsResponse>();
+  const [sortDirection, setSortDirection] = useState(DEFAULT_SORT_DIRECTION);
+  const [query, setQuery] = useState<string>("");
+
+  useEffect(() => {
+    const onload = async () => {
+      const productResponse = await fetchProducts();
+      setProductResponse(productResponse);
+    };
+
+    onload();
+  }, []);
+
+  useEffect(() => {
+    const search = async () => {
+      const productResponse =
+        query.length > 0 ? await searchProducts(query) : await fetchProducts();
+      setSortDirection(DEFAULT_SORT_DIRECTION);
+      setProductResponse(productResponse);
+    };
+
+    search();
+  }, [query]);
+
+  useEffect(() => {
+    // TODO: API does not support sorting in search page as a solution
+    // we'll sort the prices on the client side
+    const sort = async () => {
+      const products = productResponse?.products;
+      if (products !== undefined && products.length > 0) {
+        const sortedProducts = sortProductsByPrice(products, sortDirection);
+        if (productResponse !== undefined) {
+          setProductResponse({ ...productResponse, products: sortedProducts });
+        }
+      }
+    };
+
+    sort();
+  }, [sortDirection]);
 
   return (
-    <main className="flex min-h-screen flex-col items-center justify-center bg-gradient-to-b from-[#2e026d] to-[#15162c] text-white">
-      <div className="container flex flex-col items-center justify-center gap-12 px-4 py-16 ">
-        <h1 className="text-5xl font-extrabold tracking-tight sm:text-[5rem]">
-          Create <span className="text-[hsl(280,100%,70%)]">T3</span> App
-        </h1>
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 md:gap-8">
-          <Link
-            className="flex max-w-xs flex-col gap-4 rounded-xl bg-white/10 p-4 hover:bg-white/20"
-            href="https://create.t3.gg/en/usage/first-steps"
-            target="_blank"
-          >
-            <h3 className="text-2xl font-bold">First Steps →</h3>
-            <div className="text-lg">
-              Just the basics - Everything you need to know to set up your
-              database and authentication.
-            </div>
-          </Link>
-          <Link
-            className="flex max-w-xs flex-col gap-4 rounded-xl bg-white/10 p-4 hover:bg-white/20"
-            href="https://create.t3.gg/en/introduction"
-            target="_blank"
-          >
-            <h3 className="text-2xl font-bold">Documentation →</h3>
-            <div className="text-lg">
-              Learn more about Create T3 App, the libraries it uses, and how to
-              deploy it.
-            </div>
-          </Link>
+    <main className="bg-gray-100 px-4 dark:bg-gray-950">
+      <div className="w-full items-center gap-4 rounded-lg bg-white p-4 shadow-sm dark:bg-gray-900 md:ml-auto md:gap-2 lg:gap-4">
+        <h2 className="py-4 text-3xl font-semibold">Products</h2>
+        <div className="flex flex-row">
+          <div className="basis-1/4">
+            <Search
+              onChange={(query) => {
+                setQuery(query);
+              }}
+            />
+          </div>
+          <div className="basis-1/2">
+            <Sort
+              sortDirection={sortDirection}
+              onClick={() => {
+                setSortDirection(sortDirection === "asc" ? "desc" : "asc");
+              }}
+            />
+          </div>
         </div>
-        <div className="flex flex-col items-center gap-2">
-          <p className="text-2xl text-white">
-            {hello ? hello.greeting : "Loading tRPC query..."}
-          </p>
-        </div>
-
-        <CrudShowcase />
+      </div>
+      <div className="grid  gap-8   md:p-6">
+        {productResponse && (
+          <>
+            <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4">
+              {productResponse?.products.map((product) => (
+                <Product
+                  key={product.id}
+                  id={product.id}
+                  title={product.title}
+                  price={product.price}
+                  description={product.description}
+                  thumbnail={product.thumbnail}
+                />
+              ))}
+            </div>
+            <div className="self-center">
+              <Footer
+                total={productResponse?.total}
+                averagePrice={calculateProductPriceAverage(
+                  productResponse.products,
+                )}
+              />
+            </div>
+          </>
+        )}
       </div>
     </main>
-  );
-}
-
-async function CrudShowcase() {
-  const latestPost = await api.post.getLatest();
-
-  return (
-    <div className="w-full max-w-xs">
-      {latestPost ? (
-        <p className="truncate">Your most recent post: {latestPost.name}</p>
-      ) : (
-        <p>You have no posts yet.</p>
-      )}
-
-      <CreatePost />
-    </div>
   );
 }
